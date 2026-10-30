@@ -4,6 +4,17 @@
 -- 约定：无物理外键，逻辑关联；雪花 BIGINT 主键；软删除用 is_deleted
 -- ============================================================
 
+-- 幂等：先删除已存在的表，保证脚本可重复执行（开发环境用，会清空表数据）
+DROP TABLE IF EXISTS `review`;
+DROP TABLE IF EXISTS `payment_record`;
+DROP TABLE IF EXISTS `prescription`;
+DROP TABLE IF EXISTS `message`;
+DROP TABLE IF EXISTS `consult_form`;
+DROP TABLE IF EXISTS `consultation_order`;
+DROP TABLE IF EXISTS `doctor`;
+DROP TABLE IF EXISTS `user`;
+DROP TABLE IF EXISTS `department`;
+
 -- 1. 科室表 department
 CREATE TABLE `department` (
   `id`          BIGINT       NOT NULL                      COMMENT '雪花主键ID，全局唯一',
@@ -23,7 +34,8 @@ CREATE TABLE `department` (
 CREATE TABLE `user` (
   `id`          BIGINT       NOT NULL                      COMMENT '雪花主键ID，全局唯一',
   `username`    VARCHAR(50)  NOT NULL                      COMMENT '登录账号，唯一，用于登录校验',
-  `password`   MMENT '用户角色：1=患者，2=医生，3=管理员',
+  `password`    VARCHAR(100) NOT NULL                      COMMENT '登录密码，BCrypt加密存储',
+  `role`        TINYINT      NOT NULL DEFAULT 1            COMMENT '用户角色：1=患者，2=医生，3=管理员',
   `real_name`   VARCHAR(20)  DEFAULT NULL                  COMMENT '真实姓名，实名展示',
   `id_card`     VARCHAR(18)  DEFAULT NULL                  COMMENT '身份证号，用于实名校验，返回时脱敏',
   `is_auth`     TINYINT      NOT NULL DEFAULT 0            COMMENT '实名状态：0=未实名，1=已实名',
