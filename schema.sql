@@ -35,6 +35,8 @@ CREATE TABLE `user` (
   `id`          BIGINT       NOT NULL                      COMMENT '雪花主键ID，全局唯一',
   `username`    VARCHAR(50)  NOT NULL                      COMMENT '登录账号，唯一，用于登录校验',
   `password`    VARCHAR(100) NOT NULL                      COMMENT '登录密码，BCrypt加密存储',
+  `phone`       VARCHAR(20)  NOT NULL                      COMMENT '手机号，唯一，用于注册登录和接收通知',
+  `avatar`      VARCHAR(255) DEFAULT NULL                  COMMENT '头像URL，用户上传后存储访问地址',
   `role`        TINYINT      NOT NULL DEFAULT 1            COMMENT '用户角色：1=患者，2=医生，3=管理员',
   `real_name`   VARCHAR(20)  DEFAULT NULL                  COMMENT '真实姓名，实名展示',
   `id_card`     VARCHAR(18)  DEFAULT NULL                  COMMENT '身份证号，用于实名校验，返回时脱敏',
@@ -44,6 +46,7 @@ CREATE TABLE `user` (
   `is_deleted`  TINYINT      NOT NULL DEFAULT 0            COMMENT '软删除：0=正常，1=删除',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_username` (`username`),
+  UNIQUE KEY `uk_phone` (`phone`),
   KEY `idx_role` (`role`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 

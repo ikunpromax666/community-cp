@@ -2,7 +2,9 @@
  * com.community.communitycp.doctor.entity
  */
 package com.community.communitycp.doctor.entity;
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -65,14 +67,16 @@ public class Doctor {
      */
     private Integer ratingCount;
 
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
 
     /**
-     * 软删除标志
+     * 软删除标志：0=未删除，1=已删除
      */
     @TableLogic
-    private Integer isDelete;
+    private Integer isDeleted;
 
 }
