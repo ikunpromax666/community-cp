@@ -4,12 +4,17 @@
 package com.community.communitycp.user.service;
 
 import com.community.communitycp.common.core.Result;
+import com.community.communitycp.user.dto.LoginDTO;
 import com.community.communitycp.user.dto.RegisterDTO;
+import com.community.communitycp.user.vo.LoginVO;
 import jakarta.validation.Valid;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration
+
 public interface UserService {
 
-    Result register(@Valid RegisterDTO registerDTO);
+    Result register(RegisterDTO registerDTO);
+
+    Result<LoginVO> login( LoginDTO loginDTO);
+
+    Result logout();
 }

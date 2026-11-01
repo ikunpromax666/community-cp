@@ -2,6 +2,8 @@ package com.community.communitycp.common.web;
 
 import com.community.communitycp.common.core.Result;
 import com.community.communitycp.common.core.ResultCode;
+import com.community.communitycp.common.constant.RedisKeyConstant;
+import com.community.communitycp.common.redis.RedisService;
 import com.community.communitycp.common.util.JwtUtil;
 import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +29,7 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
+    private final RedisService redisService;
 
     @Value("${community.jwt.header}")
     private String headerName;
@@ -53,6 +56,19 @@ public class AuthInterceptor implements HandlerInterceptor {
         Integer role = jwtUtil.getRoleFromToken(token);
         if (userId == null || role == null) {
             writeError(response, ResultCode.UNAUTHORIZED);
+            return false;
+        }
+
+        // 单端登录校验：Redis 中该用户的有效 token 必须与本次请求的 token 一致
+        String currentToken = redisService.get(RedisKeyConstant.loginTokenKey(userId));
+        if (currentToken == null) {
+            // 已登出或 Redis 中无记录
+            writeError(response, ResultCode.UNAUTHORIZED);
+            return false;
+        }
+        if (!currentToken.equals(token)) {
+            // 账号已在其他设备登录，旧 token 已被覆盖
+            writeError(response, ResultCode.TOKEN_KICKED_OUT);
             return false;
         }
 

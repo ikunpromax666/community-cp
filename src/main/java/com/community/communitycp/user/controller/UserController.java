@@ -4,8 +4,10 @@
 package com.community.communitycp.user.controller;
 
 import com.community.communitycp.common.core.Result;
+import com.community.communitycp.user.dto.LoginDTO;
 import com.community.communitycp.user.dto.RegisterDTO;
 import com.community.communitycp.user.service.UserService;
+import com.community.communitycp.user.vo.LoginVO;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,6 +28,15 @@ public class UserController {
     @PostMapping("/register")
     public Result register(@Valid  @RequestBody RegisterDTO registerDTO) {
         return userService.register(registerDTO);
+    }
 
+    @PostMapping("/login")
+    public Result<LoginVO> login(@Valid @RequestBody LoginDTO loginDTO) {
+        return userService.login(loginDTO);
+    }
+
+    @PostMapping("/logout")
+    public Result logout() {
+        return userService.logout();
     }
 }
