@@ -22,7 +22,7 @@ public enum ResultCode {
     METHOD_NOT_ALLOWED(405, "请求方法不支持"),
     AUTH_ERROR(406, "注册身份只能是用户或医生"),
 
-    // ===== 业务错误 1xxx =====
+    // ===== 登录错误 1xxx =====
     USERNAME_EXISTS(1001, "用户名已存在"),
     USERNAME_OR_PASSWORD_ERROR(1002, "用户名或密码错误"),
     USER_NOT_FOUND(1003, "用户不存在"),
@@ -30,6 +30,9 @@ public enum ResultCode {
     PHONE_EXISTS(1005, "手机号已存在"),
     PASSWORD_ERROR(1006, "密码错误"),
     TOKEN_KICKED_OUT(1007, "账号已在其他设备登录，请重新登录"),
+    USER_AUTHED(1008, "用户已认证"),
+    PASSWORD_NOT_MATCH(1009, "新密码与确认密码不一致"),
+    OLD_PASSWORD_ERROR(1011, "旧密码错误"),
 
     DOCTOR_NOT_FOUND(1101, "医生不存在"),
     DOCTOR_OFFLINE(1102, "医生当前不在线"),
@@ -51,9 +54,8 @@ public enum ResultCode {
     CONSULT_ALREADY_REVIEWED(1403, "该订单已评价"),
 
     DEPT_NOT_FOUND(1501, "科室不存在"),
+    FILE_UPLOAD_ERROR(1601, "文件上传失败");
 
-    FILE_UPLOAD_ERROR(1601, "文件上传失败"),
-    FILE_EMPTY(1602, "上传文件不能为空");
 
     private final Integer code;
     private final String message;

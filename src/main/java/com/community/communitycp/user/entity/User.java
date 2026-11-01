@@ -40,7 +40,7 @@ public class User {
      */
     private String avatar;
      /**
-      * 角色
+      * 角色：0=普通患者，1=医生
       */
     private Integer role;
     /**
