@@ -61,14 +61,10 @@ public class UserServiceImpl implements UserService {
             return Result.fail(ResultCode.PHONE_EXISTS);
         }
 
-        //校验角色：只能是患者(1)或医生(2)，不能注册管理员(3)
-        if (registerDTO.getRole() != UserRoleConstant.PATIENT && registerDTO.getRole() != UserRoleConstant.DOCTOR) {
-            return Result.fail(ResultCode.AUTH_ERROR);
-        }
-
-        //组装用户对象，密码加密存储
+        //组装用户对象，密码加密存储。注册固定创建患者账号（role=1）
         User user = new User();
         BeanUtils.copyProperties(registerDTO, user);
+        user.setRole(UserRoleConstant.PATIENT);
         user.setPassword(PasswordUtil.encode(registerDTO.getPassword()));
         user.setIsAuth(0);
 
@@ -81,7 +77,7 @@ public class UserServiceImpl implements UserService {
         //校验用户名是否存在
         User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getUsername, loginDTO.getUsername()));
         if (user == null) {
-            return Result.fail(ResultCode.USERNAME_OR_PASSWORD_ERROR);
+            return Result.fail(ResultCode.USER_NOT_FOUND);
         }
         //校验密码是否正确
         if (!PasswordUtil.matches(loginDTO.getPassword(), user.getPassword())) {

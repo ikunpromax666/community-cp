@@ -53,6 +53,12 @@
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
             <version>${mybatis-plus.version}</version>
         </dependency>
+        <!-- MyBatis-Plus 分页拦截器依赖 JSqlParser，3.5.9+ 拆成独立模块，需单独引入 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+            <version>${mybatis-plus.version}</version>
+        </dependency>
         <!-- Caffeine 本地缓存 (多级缓存 L1) -->
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
