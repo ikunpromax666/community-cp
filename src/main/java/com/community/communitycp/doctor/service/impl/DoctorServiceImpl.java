@@ -4,13 +4,21 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.community.communitycp.common.constant.RedisKeyConstant;
+import com.community.communitycp.common.core.BizException;
 import com.community.communitycp.common.core.PageResult;
+import com.community.communitycp.common.core.ResultCode;
 import com.community.communitycp.common.redis.RedisService;
+import com.community.communitycp.common.web.UserContext;
 import com.community.communitycp.doctor.dto.DoctorQueryDTO;
+import com.community.communitycp.doctor.dto.OnlineStatusDTO;
+import com.community.communitycp.doctor.entity.Department;
 import com.community.communitycp.doctor.entity.Doctor;
+import com.community.communitycp.doctor.mapper.DepartmentMapper;
 import com.community.communitycp.doctor.mapper.DoctorMapper;
 import com.community.communitycp.doctor.service.DoctorService;
+import com.community.communitycp.doctor.vo.DoctorDetailVO;
 import com.community.communitycp.doctor.vo.DoctorListVO;
+import com.community.communitycp.doctor.vo.DoctorProfileVO;
 import com.community.communitycp.user.entity.User;
 import com.community.communitycp.user.mapper.UserMapper;
 import org.springframework.stereotype.Service;
@@ -21,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -65,15 +74,23 @@ public class DoctorServiceImpl implements DoctorService {
      */
     private static final long RETRY_SLEEP_MILLIS = 50L;
 
+    /**
+     * 医生不存在时缓存的空标记：反序列化后 userId 为 null，用来区分「缓存没命中」和「库里确实没有」
+     */
+    private static final String EMPTY_DOCTOR_MARK = "{}";
+
     private final DoctorMapper doctorMapper;
     private final UserMapper userMapper;
+    private final DepartmentMapper departmentMapper;
     private final RedisService redisService;
     private final ObjectMapper objectMapper;
 
     public DoctorServiceImpl(DoctorMapper doctorMapper, UserMapper userMapper,
-                             RedisService redisService, ObjectMapper objectMapper) {
+                             DepartmentMapper departmentMapper, RedisService redisService,
+                             ObjectMapper objectMapper) {
         this.doctorMapper = doctorMapper;
         this.userMapper = userMapper;
+        this.departmentMapper = departmentMapper;
         this.redisService = redisService;
         this.objectMapper = objectMapper;
     }
@@ -128,6 +145,128 @@ public class DoctorServiceImpl implements DoctorService {
             redisService.unlock(lockKey, lockToken);
         }
     }
+
+    @Override
+    public DoctorDetailVO getDoctorDetail(Long userId) {
+        String key = RedisKeyConstant.doctorDetailKey(userId);
+
+        // 1. 先查缓存
+        String json = redisService.get(key);
+        if (json != null) {
+            // 空标记 "{}" 反序列化后 userId 为 null，说明这个医生不存在
+            DoctorDetailVO cached = objectMapper.readValue(json, DoctorDetailVO.class);
+            if (cached == null || cached.getUserId() == null) {
+                throw new BizException(ResultCode.DOCTOR_NOT_FOUND);
+            }
+            return cached;
+        }
+
+        // 2. 缓存未命中，按 user_id 查 doctor（入参是 user.id，不是 doctor 表主键）
+        Doctor doctor = doctorMapper.selectOne(
+                new LambdaQueryWrapper<Doctor>().eq(Doctor::getUserId, userId));
+        if (doctor == null) {
+            // 空值防穿透：缓存空标记 5 分钟
+            redisService.set(key, EMPTY_DOCTOR_MARK, EMPTY_CACHE_MINUTES, TimeUnit.MINUTES);
+            throw new BizException(ResultCode.DOCTOR_NOT_FOUND);
+        }
+
+        // 3. 补 user（姓名、头像）和 department（科室名称）
+        User user = userMapper.selectById(userId);
+        Department dept = departmentMapper.selectById(doctor.getDeptId());
+
+        // 4. 组装详情 VO（只暴露详情页需要的字段）
+        DoctorDetailVO vo = new DoctorDetailVO();
+        vo.setUserId(userId);
+        vo.setRealName(user != null ? user.getRealName() : null);
+        vo.setAvatar(user != null ? user.getAvatar() : null);
+        vo.setDeptId(doctor.getDeptId());
+        vo.setDeptName(dept != null ? dept.getName() : null);
+        vo.setTitle(doctor.getTitle());
+        vo.setSpecialty(doctor.getSpecialty());
+        vo.setConsultPrice(doctor.getConsultPrice());
+        vo.setOnlineStatus(doctor.getOnlineStatus());
+        vo.setConsultStatus(doctor.getConsultStatus());
+        vo.setRatingAvg(doctor.getRatingAvg());
+        vo.setRatingCount(doctor.getRatingCount());
+
+        // 5. 写缓存（加随机偏移，防缓存雪崩）
+        long ttl = CACHE_MINUTES + ThreadLocalRandom.current().nextLong(3);
+        redisService.set(key, objectMapper.writeValueAsString(vo), ttl, TimeUnit.MINUTES);
+
+        return vo;
+    }
+
+    @Override
+    public DoctorProfileVO getDoctorProfile(Long userId) {
+        // 医生看自己的资料，调用频率低且在线/问诊状态会变，不做缓存，直接查库
+        Doctor doctor = doctorMapper.selectOne(
+                new LambdaQueryWrapper<Doctor>().eq(Doctor::getUserId, userId));
+        if (doctor == null) {
+            throw new BizException(ResultCode.DOCTOR_NOT_FOUND);
+        }
+
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(ResultCode.USER_NOT_FOUND);
+        }
+
+        Department dept = departmentMapper.selectById(doctor.getDeptId());
+
+        DoctorProfileVO vo = new DoctorProfileVO();
+        vo.setUserId(userId);
+        vo.setUsername(user.getUsername());
+        vo.setRealName(user.getRealName());
+        vo.setPhone(maskPhone(user.getPhone()));
+        vo.setDeptId(doctor.getDeptId());
+        vo.setDeptName(dept != null ? dept.getName() : null);
+        vo.setTitle(doctor.getTitle());
+        vo.setSpecialty(doctor.getSpecialty());
+        vo.setConsultPrice(doctor.getConsultPrice());
+        vo.setOnlineStatus(doctor.getOnlineStatus());
+        vo.setConsultStatus(doctor.getConsultStatus());
+        vo.setRatingAvg(doctor.getRatingAvg());
+        vo.setRatingCount(doctor.getRatingCount());
+        return vo;
+    }
+
+    @Override
+    public void updateOnlineStatus(OnlineStatusDTO onlineStatusDTO) {
+        // 当前登录医生的 userId，不接受前端传参，避免改别人的状态
+        Long userId = UserContext.getUserId();
+
+        // 1. 按 user_id 查 doctor 记录（doctor 表主键不是 user.id，不能用 selectById）
+        Doctor doctor = doctorMapper.selectOne(
+                new LambdaQueryWrapper<Doctor>().eq(Doctor::getUserId, userId));
+        if (doctor == null) {
+            throw new BizException(ResultCode.DOCTOR_NOT_FOUND);
+        }
+
+        // 2. 状态没变直接返回，省一次写库和缓存清理
+        if (Objects.equals(doctor.getOnlineStatus(), onlineStatusDTO.getOnlineStatus())) {
+            return;
+        }
+
+        // 3. 先更新 DB，再删缓存（避免并发读把旧值回填进缓存）
+        doctor.setOnlineStatus(onlineStatusDTO.getOnlineStatus());
+        doctorMapper.updateById(doctor);
+
+        // 4. 详情缓存失效
+        redisService.delete(RedisKeyConstant.doctorDetailKey(userId));
+
+        // 5. 该科室的列表缓存失效（下线后不应再出现在列表里）
+        redisService.deleteByPrefix(RedisKeyConstant.doctorDeptPrefix(doctor.getDeptId()));
+    }
+
+    /**
+     * 手机号脱敏：13812341234 -> 138****1234
+     */
+    private String maskPhone(String phone) {
+        if (phone == null || phone.length() < 7) {
+            return phone;
+        }
+        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
+    }
+
 
     /**
      * 读缓存：未命中返回 null；命中（包括空列表）返回反序列化后的分页结果

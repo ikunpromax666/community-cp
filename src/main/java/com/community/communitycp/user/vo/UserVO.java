@@ -1,6 +1,5 @@
 package com.community.communitycp.user.vo;
 
-import com.community.communitycp.doctor.vo.DoctorInfoVO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -39,7 +38,4 @@ public class UserVO {
 
     @Schema(description = "注册时间")
     private String createTime;
-
-    @Schema(description = "医生信息（仅医生角色有值）")
-    private DoctorInfoVO doctorInfo;
 }
