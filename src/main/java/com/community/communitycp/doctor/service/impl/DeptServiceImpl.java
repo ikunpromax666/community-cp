@@ -9,10 +9,12 @@ import com.community.communitycp.common.redis.RedisService;
 import com.community.communitycp.doctor.entity.Department;
 import com.community.communitycp.doctor.mapper.DepartmentMapper;
 import com.community.communitycp.doctor.service.DeptService;
+import com.community.communitycp.doctor.vo.DeptVO;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -24,7 +26,7 @@ public class DeptServiceImpl implements DeptService {
     /**
      * 缓存反序列化用的完整泛型类型，避免 readValue(json, List.class) 把元素转成 LinkedHashMap
      */
-    private static final TypeReference<List<Department>> DEPT_LIST_TYPE = new TypeReference<>() {
+    private static final TypeReference<List<DeptVO>> DEPT_LIST_TYPE = new TypeReference<>() {
     };
 
     private final DepartmentMapper departmentMapper;
@@ -39,7 +41,7 @@ public class DeptServiceImpl implements DeptService {
     }
 
     @Override
-    public List<Department> list() {
+    public List<DeptVO> list() {
         String key = RedisKeyConstant.deptListKey();
         //先查缓存
         String json = redisService.get(key);
@@ -54,18 +56,28 @@ public class DeptServiceImpl implements DeptService {
         }
 
         // 缓存未命中，从 DB 查询
-        List<Department> list = departmentMapper.selectList(
+        List<Department> entities = departmentMapper.selectList(
                 new LambdaQueryWrapper<Department>()
                         .eq(Department::getStatus, 1)
                         .orderByAsc(Department::getSort)
                 );
 
-        // 3. 写缓存：空值 5min，正常值 30min + 随机偏移
-        long ttl = list.isEmpty()
-                ? 5L // 空值 5min 空值防穿透，短过期
-                : 30L + ThreadLocalRandom.current().nextLong(5); // 正常值 30min + 随机偏移，防雪崩
-        redisService.set(key,objectMapper.writeValueAsString(list),ttl, TimeUnit.MINUTES);
+        // 实体转 VO：只暴露前端需要的字段
+        List<DeptVO> vos = new ArrayList<>(entities.size());
+        for (Department d : entities) {
+            DeptVO vo = new DeptVO();
+            vo.setId(d.getId());
+            vo.setName(d.getName());
+            vo.setIntro(d.getIntro());
+            vos.add(vo);
+        }
 
-        return list;
+        // 写缓存：空值 5min，正常值 30min + 随机偏移
+        long ttl = vos.isEmpty()
+                ? 5L // 空值 5min 空值防穿透，短过期
+                : 30L + ThreadLocalRandom.current().nextLong(10); // 正常值 30min + 随机偏移(0~10min)，防雪崩
+        redisService.set(key, objectMapper.writeValueAsString(vos), ttl, TimeUnit.MINUTES);
+
+        return vos;
     }
 }

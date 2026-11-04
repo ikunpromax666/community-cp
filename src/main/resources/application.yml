@@ -59,8 +59,8 @@ community:
   # JWT 配置
   jwt:
     secret: community-cp-secret-key-2026-must-be-at-least-256-bits-long
-    # Token 有效期：20 小时（毫秒）
-    expire: 72000000
+    # Token 有效期：2 小时（毫秒），与 Redis 登录态 TTL 保持一致
+    expire: 7200000
     # 请求头名称
     header: Authorization
     # Token 前缀

@@ -4,10 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.function.Function;
 
 /**
  * 分页返回结果封装
@@ -34,31 +31,13 @@ public class PageResult<T> {
 
     /**
      * 直接由 MyBatis-Plus 的 IPage 转换
+     * <p>
+     * 仅当 records 元素类型与目标一致时可用；
+     * Entity -> VO 的跨类型转换请在 Service 里手动 new PageResult + 手动 setRecords。
      */
     public static <T> PageResult<T> from(IPage<T> page) {
         PageResult<T> result = new PageResult<>();
         result.setRecords(page.getRecords());
-        result.setTotal(page.getTotal());
-        result.setPages(page.getPages());
-        result.setCurrent(page.getCurrent());
-        result.setSize(page.getSize());
-        return result;
-    }
-
-    /**
-     * 由 IPage 转换为另一种元素类型（如 Entity -> VO）
-     */
-    public static <E, T> PageResult<T> from(IPage<E> page, Function<E, T> converter) {
-        PageResult<T> result = new PageResult<>();
-        if (page.getRecords() == null) {
-            result.setRecords(Collections.emptyList());
-        } else {
-            List<T> records = new ArrayList<>(page.getRecords().size());
-            for (E item : page.getRecords()) {
-                records.add(converter.apply(item));
-            }
-            result.setRecords(records);
-        }
         result.setTotal(page.getTotal());
         result.setPages(page.getPages());
         result.setCurrent(page.getCurrent());

@@ -6,11 +6,11 @@ package com.community.communitycp.common.constant;
 public class RedisKeyConstant {
 
     /**
-     * 登录 Token：login:token:{userId} -> 当前有效 token
+     * 登录 Token：login:user:{userId} -> 当前有效 token
      * <p>
      * 单端登录：同一 userId 只保留最后一次登录的 token，新登录覆盖旧值
      */
-    public static final String LOGIN_TOKEN = "login:token:";
+    public static final String LOGIN_TOKEN = "login:user:";
 
     /**
      * 部门列表：dept:list -> 部门列表
@@ -57,5 +57,29 @@ public class RedisKeyConstant {
      */
     public static String doctorDeptLockKey(Long deptId) {
         return DOCTOR_DEPT_LOCK + deptId;
+    }
+
+    /**
+     * 医生详情缓存前缀：doctor:detail:{doctorId}
+     */
+    public static final String DOCTOR_DETAIL = "doctor:detail:";
+
+    /**
+     * 医生详情互斥锁前缀：lock:doctor:detail:{doctorId}
+     */
+    public static final String DOCTOR_DETAIL_LOCK = "lock:doctor:detail:";
+
+    /**
+     * 医生详情缓存 Key（doctorId 与详情接口入参一致，即 user.id）
+     */
+    public static String doctorDetailKey(Long doctorId) {
+        return DOCTOR_DETAIL + doctorId;
+    }
+
+    /**
+     * 医生详情加锁的 Key
+     */
+    public static String doctorDetailLockKey(Long doctorId) {
+        return DOCTOR_DETAIL_LOCK + doctorId;
     }
 }
