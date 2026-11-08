@@ -39,7 +39,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
-        <caffeine.version>3.1.8</caffeine.version>
         <hutool.version>5.8.32</hutool.version>
         <jjwt.version>0.12.6</jjwt.version>
         <lombok.version>1.18.48</lombok.version>
@@ -58,12 +57,6 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-jsqlparser</artifactId>
             <version>${mybatis-plus.version}</version>
-        </dependency>
-        <!-- Caffeine 本地缓存 (多级缓存 L1) -->
-        <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-            <version>${caffeine.version}</version>
         </dependency>
         <!-- Hutool 工具类 (IdUtil / StrUtil ...) -->
         <dependency>

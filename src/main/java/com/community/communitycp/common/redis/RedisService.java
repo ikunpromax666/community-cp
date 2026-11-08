@@ -37,6 +37,26 @@ public class RedisService {
     }
 
     /**
+     * 自增并返回新值（聊天消息序号用）
+     */
+    public long incr(String key) {
+        Long value = redisTemplate.opsForValue().increment(key);
+        return value == null ? 0L : value;
+    }
+
+    /**
+     * 自增并返回新值；仅在 key 第一次创建（值为 1）时设置过期时间，
+     * 后续自增不会重置 TTL，避免序号 key 长期占用内存
+     */
+    public long incr(String key, long timeout, TimeUnit unit) {
+        Long value = redisTemplate.opsForValue().increment(key);
+        if (value != null && value == 1L) {
+            redisTemplate.expire(key, timeout, unit);
+        }
+        return value == null ? 0L : value;
+    }
+
+    /**
      * 删除
      */
     public boolean delete(String key) {
@@ -104,5 +124,14 @@ public class RedisService {
         }
         Long result = redisTemplate.execute(UNLOCK_SCRIPT, Collections.singletonList(key), token);
         return Long.valueOf(1L).equals(result);
+    }
+
+    /**
+     * 仅当 key 不存在时写入（SETNX + 过期时间），用于幂等防重
+     *
+     * @return true=写入成功（首次请求），false=key 已存在（重复请求）
+     */
+    public boolean setIfAbsent(String key, String value, long timeout, TimeUnit unit) {
+        return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(key, value, timeout, unit));
     }
 }

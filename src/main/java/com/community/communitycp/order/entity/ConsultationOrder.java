@@ -45,7 +45,8 @@ public class ConsultationOrder {
     private Long deptId;
 
     /**
-     * 订单状态：0待支付,1待接诊,2问诊中,3已完成,4超时关闭,5用户放弃关闭,6拒诊/接诊超时退款关闭,7用户取消退款关闭
+     * 订单状态：0待支付,1待接诊,2问诊中,3已完成,4超时关闭,5用户放弃关闭,
+     * 6拒诊/接诊超时退款关闭,7用户取消退款关闭,8问诊超时关闭
      */
     private Integer orderStatus;
 

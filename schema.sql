@@ -79,7 +79,7 @@ CREATE TABLE `consultation_order` (
   `patient_id`   BIGINT        NOT NULL                    COMMENT '患者ID，关联user.id',
   `doctor_id`    BIGINT        NOT NULL                    COMMENT '医生ID，关联user.id',
   `dept_id`      BIGINT        NOT NULL                    COMMENT '科室ID，关联department.id',
-  `order_status` TINYINT       NOT NULL DEFAULT 0          COMMENT '订单状态：0待支付,1待接诊,2问诊中,3已完成,4超时关闭,5用户放弃关闭,6拒诊/接诊超时退款关闭,7用户取消退款关闭',
+  `order_status` TINYINT       NOT NULL DEFAULT 0          COMMENT '订单状态：0待支付,1待接诊,2问诊中,3已完成,4超时关闭,5用户放弃关闭,6拒诊/接诊超时退款关闭,7用户取消退款关闭,8问诊超时关闭',
   `amount`       DECIMAL(10,2) NOT NULL                    COMMENT '问诊费用，下单时取医生价格快照写入',
   `pay_time`     DATETIME      DEFAULT NULL                COMMENT '支付成功时间，仅支付成功时赋值一次',
   `accept_time`  DATETIME      DEFAULT NULL                COMMENT '医生接诊时间，医生接单时赋值一次',
@@ -93,6 +93,7 @@ CREATE TABLE `consultation_order` (
   KEY `idx_patient_status` (`patient_id`, `order_status`),
   KEY `idx_doctor_status` (`doctor_id`, `order_status`),
   KEY `idx_status_create` (`order_status`, `create_time`),
+  KEY `idx_status_accept` (`order_status`, `accept_time`),
   KEY `idx_dept` (`dept_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='问诊订单表';
 

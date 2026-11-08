@@ -2,18 +2,23 @@ package com.community.communitycp.common.config;
 
 import com.community.communitycp.common.web.AuthInterceptor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * WebMvc 配置：注册拦截器等
+ * WebMvc 配置：注册拦截器、静态资源映射
  */
 @Configuration
 @RequiredArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;
+
+    @Value("${community.upload.path}")
+    private String uploadPath;
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -33,5 +38,14 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/error",                      // Spring Boot 错误页
                         "/uploads/**"                  // 静态资源
                 );
+    }
+
+    /**
+     * 静态资源映射：把 /uploads/** 映射到磁盘上传目录
+     */
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations("file:" + uploadPath + "/");
     }
 }

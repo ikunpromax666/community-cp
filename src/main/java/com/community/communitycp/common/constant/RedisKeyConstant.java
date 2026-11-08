@@ -82,4 +82,16 @@ public class RedisKeyConstant {
     public static String doctorDetailLockKey(Long doctorId) {
         return DOCTOR_DETAIL_LOCK + doctorId;
     }
+
+    /**
+     * 下单幂等前缀：idempotent:order:{userId}:{requestId}
+     */
+    public static final String IDEMPOTENT_ORDER = "idempotent:order:";
+
+    /**
+     * 下单幂等 Key：同一用户同一 requestId 只允许成功提交一次
+     */
+    public static String idempotentOrderKey(Long userId, String requestId) {
+        return IDEMPOTENT_ORDER + userId + ":" + requestId;
+    }
 }
