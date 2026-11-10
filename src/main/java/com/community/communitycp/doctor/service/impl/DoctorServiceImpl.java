@@ -1,16 +1,22 @@
 package com.community.communitycp.doctor.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.community.communitycp.common.constant.OrderStatusConstant;
+import com.community.communitycp.common.constant.PayStatusConstant;
 import com.community.communitycp.common.constant.RedisKeyConstant;
 import com.community.communitycp.common.core.BizException;
 import com.community.communitycp.common.core.PageResult;
 import com.community.communitycp.common.core.ResultCode;
 import com.community.communitycp.common.redis.RedisService;
 import com.community.communitycp.common.web.UserContext;
+import com.community.communitycp.consult.entity.Prescription;
+import com.community.communitycp.consult.mapper.PrescriptionMapper;
 import com.community.communitycp.doctor.dto.DoctorQueryDTO;
 import com.community.communitycp.doctor.dto.OnlineStatusDTO;
+import com.community.communitycp.doctor.dto.PrescriptionDTO;
 import com.community.communitycp.doctor.entity.Department;
 import com.community.communitycp.doctor.entity.Doctor;
 import com.community.communitycp.doctor.mapper.DepartmentMapper;
@@ -19,12 +25,21 @@ import com.community.communitycp.doctor.service.DoctorService;
 import com.community.communitycp.doctor.vo.DoctorDetailVO;
 import com.community.communitycp.doctor.vo.DoctorListVO;
 import com.community.communitycp.doctor.vo.DoctorProfileVO;
+import com.community.communitycp.consult.vo.PrescriptionVO;
+import com.community.communitycp.order.dto.OrderDTO;
+import com.community.communitycp.order.entity.ConsultationOrder;
+import com.community.communitycp.order.entity.PaymentRecord;
+import com.community.communitycp.order.mapper.ConsultationOrderMapper;
+import com.community.communitycp.order.mapper.PaymentRecordMapper;
 import com.community.communitycp.user.entity.User;
 import com.community.communitycp.user.mapper.UserMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -79,20 +94,38 @@ public class DoctorServiceImpl implements DoctorService {
      */
     private static final String EMPTY_DOCTOR_MARK = "{}";
 
+    /**
+     * 处方单号前缀
+     */
+    private static final String PRESCRIPTION_NO_PREFIX = "PRE";
+
+    /**
+     * 处方单号中的时间部分：yyyyMMddHHmmss
+     */
+    private static final DateTimeFormatter PRESCRIPTION_NO_TIME =
+            DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
     private final DoctorMapper doctorMapper;
     private final UserMapper userMapper;
     private final DepartmentMapper departmentMapper;
     private final RedisService redisService;
     private final ObjectMapper objectMapper;
+    private final ConsultationOrderMapper orderMapper;
+    private final PaymentRecordMapper paymentRecordMapper;
+    private final PrescriptionMapper prescriptionMapper;
 
     public DoctorServiceImpl(DoctorMapper doctorMapper, UserMapper userMapper,
                              DepartmentMapper departmentMapper, RedisService redisService,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper, ConsultationOrderMapper orderMapper, PaymentRecordMapper paymentRecordMapper,
+                             PrescriptionMapper prescriptionMapper) {
         this.doctorMapper = doctorMapper;
         this.userMapper = userMapper;
         this.departmentMapper = departmentMapper;
         this.redisService = redisService;
         this.objectMapper = objectMapper;
+        this.orderMapper = orderMapper;
+        this.paymentRecordMapper = paymentRecordMapper;
+        this.prescriptionMapper = prescriptionMapper;
     }
 
     @Override
@@ -255,6 +288,143 @@ public class DoctorServiceImpl implements DoctorService {
 
         // 5. 该科室的列表缓存失效（下线后不应再出现在列表里）
         redisService.deleteByPrefix(RedisKeyConstant.doctorDeptPrefix(doctor.getDeptId()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void acceptOrder(OrderDTO orderDTO) {
+        Long doctorId = UserContext.getUserId();
+        Long orderId = orderDTO.getOrderId();
+
+        // 1. 查订单并校验归属：只有该订单的接诊医生才能接诊
+        ConsultationOrder order = orderMapper.selectById(orderId);
+        if (order == null || !doctorId.equals(order.getDoctorId())) {
+            throw new BizException(ResultCode.ORDER_NOT_FOUND);
+        }
+
+        // 2. 订单 CAS：只有待接诊(1)才能推进到问诊中(2)，防并发重复接诊
+        LocalDateTime now = LocalDateTime.now();
+        int rows = orderMapper.update(null, new LambdaUpdateWrapper<ConsultationOrder>()
+                .eq(ConsultationOrder::getId, orderId)
+                .eq(ConsultationOrder::getDoctorId, doctorId)
+                .eq(ConsultationOrder::getOrderStatus, OrderStatusConstant.PENDING_ACCEPT)
+                .set(ConsultationOrder::getOrderStatus, OrderStatusConstant.IN_PROGRESS)
+                .set(ConsultationOrder::getAcceptTime, now));
+        if (rows == 0) {
+            // 订单存在但已不是待接诊：被用户取消、已超时关闭或已被接诊
+            throw new BizException(ResultCode.ORDER_STATUS_ERROR);
+        }
+
+        // 3. 医生 CAS：只有空闲(0)才能置为问诊中(1)
+        //    失败说明该医生正在接别的单，抛异常让事务回滚，避免一人同时接两单
+        int doctorRows = doctorMapper.update(null, new LambdaUpdateWrapper<Doctor>()
+                .eq(Doctor::getUserId, doctorId)
+                .eq(Doctor::getConsultStatus, 0)
+                .set(Doctor::getConsultStatus, 1));
+        if (doctorRows == 0) {
+            throw new BizException(ResultCode.DOCTOR_BUSY);
+        }
+
+        // 4. 状态已变（问诊中），清掉详情与科室列表缓存，避免患者端看到可接诊的过期数据
+        redisService.delete(RedisKeyConstant.doctorDetailKey(doctorId));
+        redisService.deleteByPrefix(RedisKeyConstant.doctorDeptPrefix(order.getDeptId()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void rejectOrder(OrderDTO orderDTO) {
+        Long doctorId = UserContext.getUserId();
+        Long orderId = orderDTO.getOrderId();
+
+        LocalDateTime now = LocalDateTime.now();
+        // 1. 查订单并校验归属：只有该订单的接诊医生才能拒绝
+        ConsultationOrder order = orderMapper.selectById(orderId);
+        if (order == null || !doctorId.equals(order.getDoctorId())) {
+            throw new BizException(ResultCode.ORDER_NOT_FOUND);
+        }
+
+        //更新订单状态为已拒绝
+        int rows =  orderMapper.update(null,new LambdaUpdateWrapper<ConsultationOrder>()
+                .eq(ConsultationOrder::getId, orderId)
+                .eq(ConsultationOrder::getDoctorId, doctorId)
+                .eq(ConsultationOrder::getOrderStatus, OrderStatusConstant.PENDING_ACCEPT)
+                .set(ConsultationOrder::getOrderStatus, OrderStatusConstant.REJECTED_CLOSED)
+                .set(ConsultationOrder::getCloseTime, now));
+        if (rows == 0) {
+            throw new BizException(ResultCode.ORDER_STATUS_ERROR);
+        }
+
+        //更新支付流水状态为已退款
+       paymentRecordMapper.update(null,new LambdaUpdateWrapper<PaymentRecord>()
+                .eq(PaymentRecord::getOrderId, orderId)
+                .eq(PaymentRecord::getPayStatus, PayStatusConstant.SUCCESS)
+                .set(PaymentRecord::getPayStatus, PayStatusConstant.REFUNDED)
+                .set(PaymentRecord::getRefundTime, now));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PrescriptionVO openPrescription(PrescriptionDTO prescriptionDTO) {
+        Long doctorId = UserContext.getUserId();
+        Long orderId = prescriptionDTO.getOrderId();
+
+        // 1. 查订单并校验归属：只有该订单的接诊医生才能开处方
+        ConsultationOrder order = orderMapper.selectById(orderId);
+        if (order == null || !doctorId.equals(order.getDoctorId())) {
+            throw new BizException(ResultCode.ORDER_NOT_FOUND);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // 2. 订单 CAS：问诊中(2) → 已完成(3)，防止重复开处方
+        int rows = orderMapper.update(null, new LambdaUpdateWrapper<ConsultationOrder>()
+                .eq(ConsultationOrder::getId, orderId)
+                .eq(ConsultationOrder::getDoctorId, doctorId)
+                .eq(ConsultationOrder::getOrderStatus, OrderStatusConstant.IN_PROGRESS)
+                .set(ConsultationOrder::getOrderStatus, OrderStatusConstant.FINISHED)
+                .set(ConsultationOrder::getFinishTime, now));
+        if (rows == 0) {
+            throw new BizException(ResultCode.ORDER_STATUS_ERROR);
+        }
+
+        // 3. 释放医生：问诊中(1) → 空闲(0)
+        int doctorRows = doctorMapper.update(null, new LambdaUpdateWrapper<Doctor>()
+                .eq(Doctor::getUserId, doctorId)
+                .eq(Doctor::getConsultStatus, 1)
+                .set(Doctor::getConsultStatus, 0));
+        if (doctorRows == 0) {
+            // 订单已是问诊中却查不到忙碌的医生，说明数据不一致，回滚
+            throw new BizException(ResultCode.ORDER_STATUS_ERROR);
+        }
+
+        // 4. 清缓存：医生恢复空闲，详情与该科室列表都要重建
+        redisService.delete(RedisKeyConstant.doctorDetailKey(doctorId));
+        redisService.deleteByPrefix(RedisKeyConstant.doctorDeptPrefix(order.getDeptId()));
+
+        // 5. 写处方（order_id 唯一索引保证一单一处方）
+        Prescription prescription = new Prescription();
+        prescription.setDoctorId(doctorId);
+        prescription.setOrderId(orderId);
+        prescription.setPrescriptionNo(generatePrescriptionNo());
+        prescription.setAdvice(prescriptionDTO.getAdvice());
+        prescription.setDrugInfo(prescriptionDTO.getDrugInfo());
+        prescriptionMapper.insert(prescription);
+
+        // 6. 组装返回
+        PrescriptionVO vo = new PrescriptionVO();
+        vo.setPrescriptionId(String.valueOf(prescription.getId()));
+        vo.setPrescriptionNo(prescription.getPrescriptionNo());
+        return vo;
+    }
+
+    /**
+     * 生成处方编号：PRE + yyyyMMddHHmmss + 4位随机数
+     * 表上有 uk_prescription_no 唯一索引，随机后缀用于避免同秒并发冲突
+     */
+    private String generatePrescriptionNo() {
+        return PRESCRIPTION_NO_PREFIX
+                + LocalDateTime.now().format(PRESCRIPTION_NO_TIME)
+                + String.format("%04d", ThreadLocalRandom.current().nextInt(10000));
     }
 
     /**

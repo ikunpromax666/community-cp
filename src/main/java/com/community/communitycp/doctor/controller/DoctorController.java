@@ -7,10 +7,13 @@ import com.community.communitycp.common.web.RequireRole;
 import com.community.communitycp.common.web.UserContext;
 import com.community.communitycp.doctor.dto.DoctorQueryDTO;
 import com.community.communitycp.doctor.dto.OnlineStatusDTO;
+import com.community.communitycp.doctor.dto.PrescriptionDTO;
 import com.community.communitycp.doctor.service.DoctorService;
 import com.community.communitycp.doctor.vo.DoctorDetailVO;
 import com.community.communitycp.doctor.vo.DoctorListVO;
 import com.community.communitycp.doctor.vo.DoctorProfileVO;
+import com.community.communitycp.consult.vo.PrescriptionVO;
+import com.community.communitycp.order.dto.OrderDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -74,4 +77,27 @@ public class DoctorController {
         return Result.success();
     }
 
+
+    @Operation(summary = "医生接诊（仅医生）")
+    @RequireRole(UserRoleConstant.DOCTOR)
+    @PostMapping("/accept")
+    public Result<Void> acceptOrder(@Valid @RequestBody OrderDTO orderDTO) {
+        doctorService.acceptOrder(orderDTO);
+        return Result.success();
+    }
+
+    @Operation(summary = "医生拒绝诊（仅医生）")
+    @RequireRole(UserRoleConstant.DOCTOR)
+    @PostMapping("/reject")
+    public Result<Void> rejectOrder(@Valid @RequestBody OrderDTO orderDTO) {
+        doctorService.rejectOrder(orderDTO);
+        return Result.success();
+    }
+
+    @RequireRole(UserRoleConstant.DOCTOR)
+    @Operation(summary = "医生开处方")
+    @PostMapping("/prescription")
+    public Result<PrescriptionVO> openPrescription(@Valid @RequestBody PrescriptionDTO prescriptionDTO) {
+        return Result.success(doctorService.openPrescription(prescriptionDTO));
+    }
 }

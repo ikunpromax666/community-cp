@@ -1,11 +1,14 @@
 package com.community.communitycp.doctor.service;
 
 import com.community.communitycp.common.core.PageResult;
+import com.community.communitycp.consult.vo.PrescriptionVO;
 import com.community.communitycp.doctor.dto.DoctorQueryDTO;
 import com.community.communitycp.doctor.dto.OnlineStatusDTO;
+import com.community.communitycp.doctor.dto.PrescriptionDTO;
 import com.community.communitycp.doctor.vo.DoctorDetailVO;
 import com.community.communitycp.doctor.vo.DoctorListVO;
 import com.community.communitycp.doctor.vo.DoctorProfileVO;
+import com.community.communitycp.order.dto.OrderDTO;
 import jakarta.validation.Valid;
 
 /**
@@ -40,4 +43,10 @@ public interface DoctorService {
      * 更新医生状态（仅医生）
      */
     void updateOnlineStatus( OnlineStatusDTO onlineStatusDTO);
+
+    void acceptOrder( OrderDTO orderDTO);
+
+    void rejectOrder( OrderDTO orderDTO);
+
+    PrescriptionVO openPrescription( PrescriptionDTO prescriptionDTO);
 }
