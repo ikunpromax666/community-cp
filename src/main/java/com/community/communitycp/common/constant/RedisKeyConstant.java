@@ -94,4 +94,28 @@ public class RedisKeyConstant {
     public static String idempotentOrderKey(Long userId, String requestId) {
         return IDEMPOTENT_ORDER + userId + ":" + requestId;
     }
+
+    /**
+     * 消息会话内自增序号：chat:seq:{orderId}
+     */
+    public static final String CHAT_SEQ = "chat:seq:";
+
+    /**
+     * 消息幂等前缀：chat:idem:{orderId}:{clientMsgId}
+     */
+    public static final String CHAT_IDEM = "chat:idem:";
+
+    /**
+     * 消息序号 Key：chat:seq:{orderId}，7 天过期
+     */
+    public static String chatSeqKey(Long orderId) {
+        return CHAT_SEQ + orderId;
+    }
+
+    /**
+     * 消息幂等 Key：chat:idem:{orderId}:{clientMsgId}，1 小时过期
+     */
+    public static String chatIdemKey(Long orderId, String clientMsgId) {
+        return CHAT_IDEM + orderId + ":" + clientMsgId;
+    }
 }

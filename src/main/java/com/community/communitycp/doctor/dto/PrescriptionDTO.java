@@ -1,9 +1,9 @@
 package com.community.communitycp.doctor.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
@@ -20,12 +20,12 @@ public class PrescriptionDTO {
     private Long orderId;
 
     @Schema(description = "处方")
-    @Max(value = 200, message = "处方不能超过200个字符")
+    @Size(max = 200, message = "处方不能超过200个字符")
     @NotBlank(message = "处方不能为空不能为空")
     private String advice;
 
     @Schema(description = "药品信息")
     @NotBlank(message = "药品信息不能为空不能为空")
-    @Max(value = 200, message = "药品信息不能超过200个字符")
+    @Size(max = 200, message = "药品信息不能超过200个字符")
     private String drugInfo;
 }

@@ -1,7 +1,7 @@
 package com.community.communitycp.order.vo;
 
-import com.community.communitycp.consult.entity.ConsultForm;
-import com.community.communitycp.consult.entity.Prescription;
+import com.community.communitycp.consult.vo.ConsultFormVO;
+import com.community.communitycp.consult.vo.PrescriptionVO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -67,8 +67,8 @@ public class DetailOrderVO {
     private LocalDateTime createTime;
 
     @Schema(description = "问诊表单：症状描述与症状图片")
-    private ConsultForm consultForm;
+    private ConsultFormVO consultForm;
 
     @Schema(description = "处方信息，未开处方时为 null")
-    private Prescription prescription;
+    private PrescriptionVO prescription;
 }

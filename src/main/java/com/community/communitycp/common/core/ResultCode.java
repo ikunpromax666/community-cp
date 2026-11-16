@@ -61,7 +61,8 @@ public enum ResultCode {
     DEPT_NOT_FOUND(1501, "科室不存在"),
     FILE_UPLOAD_ERROR(1601, "文件上传失败"),
     CONSULTATION_ORDER_STATUS_ERROR(1602, "问诊订单状态异常"),
-    PRESCRIPTION_NOT_FOUND(1603, "处方不存在");
+    PRESCRIPTION_NOT_FOUND(1603, "处方不存在"),
+    MESSAGE_NOT_FOUND(1604, "消息不存在");
 
 
     private final Integer code;

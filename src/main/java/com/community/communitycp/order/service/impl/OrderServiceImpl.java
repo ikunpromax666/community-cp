@@ -16,6 +16,8 @@ import com.community.communitycp.consult.entity.ConsultForm;
 import com.community.communitycp.consult.entity.Prescription;
 import com.community.communitycp.consult.mapper.ConsultFormMapper;
 import com.community.communitycp.consult.mapper.PrescriptionMapper;
+import com.community.communitycp.consult.vo.ConsultFormVO;
+import com.community.communitycp.consult.vo.PrescriptionVO;
 import com.community.communitycp.doctor.entity.Department;
 import com.community.communitycp.doctor.entity.Doctor;
 import com.community.communitycp.doctor.mapper.DepartmentMapper;
@@ -249,8 +251,26 @@ public class OrderServiceImpl implements OrderService {
         vo.setFinishTime(order.getFinishTime());
         vo.setCloseTime(order.getCloseTime());
         vo.setCreateTime(order.getCreateTime());
-        vo.setConsultForm(form);
-        vo.setPrescription(prescription);
+
+        // 表单、处方只暴露业务字段，不透出 id、isDeleted、doctorId 等内部列
+        if (form != null) {
+            ConsultFormVO formVO = new ConsultFormVO();
+            formVO.setOrderId(String.valueOf(order.getId()));
+            formVO.setSymptom(form.getSymptom());
+            formVO.setImgUrl(form.getImgUrl());
+            vo.setConsultForm(formVO);
+        }
+        if (prescription != null) {
+            PrescriptionVO prescriptionVO = new PrescriptionVO();
+            prescriptionVO.setPrescriptionId(String.valueOf(prescription.getId()));
+            prescriptionVO.setOrderId(String.valueOf(order.getId()));
+            prescriptionVO.setDoctorName(vo.getDoctorName());
+            prescriptionVO.setPrescriptionNo(prescription.getPrescriptionNo());
+            prescriptionVO.setAdvice(prescription.getAdvice());
+            prescriptionVO.setDrugInfo(prescription.getDrugInfo());
+            prescriptionVO.setCreateTime(prescription.getCreateTime());
+            vo.setPrescription(prescriptionVO);
+        }
         return vo;
     }
 
