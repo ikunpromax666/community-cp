@@ -30,6 +30,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/doctor/list",                // 医生列表（公开）
                         "/doctor/detail/**",           // 医生详情（公开）
                         "/department/list",            // 科室列表（公开）
+                        "/review/list",                // 医生评价列表（公开）
+                        "/review/{id:[0-9]+}",         // 评价详情（公开，仅放行数字ID）
                         "/swagger-ui.html",            // Swagger UI 入口
                         "/swagger-ui/**",              // Swagger UI 静态资源
                         "/v3/api-docs/**",             // OpenAPI 文档数据

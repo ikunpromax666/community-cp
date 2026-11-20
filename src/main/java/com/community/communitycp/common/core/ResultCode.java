@@ -55,14 +55,16 @@ public enum ResultCode {
     CONSULTATION_ORDER_NOT_FOUND(1401, "问诊订单不存在"),
     CONSULT_FORM_NOT_FOUND(1404, "问诊表单不存在"),
     CONSULT_NOT_IN_PROGRESS(1402, "问诊未进行中"),
-    CONSULT_ALREADY_REVIEWED(1403, "该订单已评价"),
 
 
     DEPT_NOT_FOUND(1501, "科室不存在"),
     FILE_UPLOAD_ERROR(1601, "文件上传失败"),
     CONSULTATION_ORDER_STATUS_ERROR(1602, "问诊订单状态异常"),
     PRESCRIPTION_NOT_FOUND(1603, "处方不存在"),
-    MESSAGE_NOT_FOUND(1604, "消息不存在");
+    MESSAGE_NOT_FOUND(1604, "消息不存在"),
+    REVIEW_SUBMITTED(1605, "该订单已评价"),
+    REVIEW_NOT_FOUND(1606, "评价不存在"),
+    PATIENT_NOT_FOUND(1607, "患者不存在");
 
 
     private final Integer code;
